@@ -11,6 +11,7 @@ var gDbo;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+//GET FRIENDS
 app.get('/friends/:userId', (req, res) => {
     let userId = parseInt(req.params.userId)
     gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
@@ -23,10 +24,12 @@ app.get('/friends/:userId', (req, res) => {
     });
 });
 
+//GET FRIENDS SUGGESTIONS
 app.get('/friendsuggestions/:userid', (req, res) => {
     res.send('Hello friendsuggestions GET : ' + req.params.userid + '. MongoDB Environment Variable : ' + process.env.MONGO_DB);
 });
 
+//MAKE FRIEND
 app.post('/friends/:userId', (req, res) => {
     let userId = parseInt(req.params.userId)
     gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
@@ -54,8 +57,35 @@ app.post('/friends/:userId', (req, res) => {
     });
 });
 
+//UNFRIEND
 app.delete('/friends/:userid', (req, res) => {
-    res.send('Hello friends DELETE : userid:' +  req.params.userid + '. FriendId : ' + req.body.friendid + '. MongoDB Environment Variable : ' + process.env.MONGO_DB);
+    let userId = parseInt(req.params.userid)
+    gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
+        if (err) {
+            res.send("false");
+        }
+        console.log('fetching');
+            
+        let index  = result.friends.findIndex(e => {
+            if(e.userId == req.body.userid) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        });
+        result.friends.splice(index, 1);
+        var myquery = { userId: userId };
+        var newvalues = { $set: { friends: result.friends } };
+        gDbo.collection("tblFriends").updateOne(myquery, newvalues, function(err, updateres) {
+            if (err) {
+                res.send("false");
+            }
+            console.log("1 document updated");
+            res.send("true");
+        });
+    });
+    //res.send('Hello friends DELETE : userid:' +  req.params.userid + '. FriendId : ' + req.body.friendid + '. MongoDB Environment Variable : ' + process.env.MONGO_DB);
 });
 
 app.listen(process.env.PORT || 3000, function () {
