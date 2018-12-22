@@ -1,0 +1,23 @@
+{
+  "name": "d2d-usvc-sample-friends",
+  "version": "1.0.0",
+  "description": "Friends Service of D2D FriendBook Microservice Sample Application",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rajch/d2d-usvc-sample-friends.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rajch/d2d-usvc-sample-friends/issues"
+  },
+  "homepage": "https://github.com/rajch/d2d-usvc-sample-friends#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4"
+  }
+}
