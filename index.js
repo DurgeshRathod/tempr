@@ -56,7 +56,7 @@ app.get('/friendsuggestions/:userid', (req, res) => {
             res.send([]);
           });
 
-          postReq.write({age: userDetails.age, movietype: userDetails.movietype});
+          postReq.write(JSON.stringify({age: userDetails.age, movietype: userDetails.movietype}));
 
           postReq.extended();
         });
