@@ -37,16 +37,16 @@ app.get('/friendsuggestions/:userid', (req, res) => {
         host: profileUrl,
         port: profileUrlPort,
         path: '/profile/' + req.params.userid,
-        type: 'get'
+        method: 'GET'
       };
       
-     var getReq =  http.get(options, function(resp){
+     var getReq =  http.request(options, function(resp){
         resp.on('data', function(chunk){
           let userDetails = chunk;
           console.log('userDetails ' + JSON.stringify(userDetails));
           options.path = 'profile/' + process.env.CAP;
-          options.type = 'post';
-          var postReq = http.post(options, function(suggF){
+          options.method= 'POST'
+          var postReq = http.request(options, function(suggF){
               suggF.on('data', function(data){
                   console.log('suggested friends ' + JSON.stringify(data));
                   res.send(data);
