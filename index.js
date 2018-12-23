@@ -3,8 +3,9 @@ var MongoClient = require('mongodb').MongoClient;
 const bodyParser =require('body-parser');
 
 var express = require('express');
+
 var app = express();
-var url = "mongodb://localhost:27017/friendsdb";
+var url = process.env.DB_URL ||  "mongodb://localhost:27017/friendsdb";
 var gDb;
 var gDbo;
 
