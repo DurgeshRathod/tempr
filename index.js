@@ -1,11 +1,13 @@
 
 var MongoClient = require('mongodb').MongoClient;
 const bodyParser =require('body-parser');
-
+var http = require('https');
 var express = require('express');
 
 var app = express();
 var url = process.env.DB_URL ||  "mongodb://localhost:27017/friendsdb";
+var profileUrl =  process.env.PROFILE_URL ||  "localhost";
+var profileUrlPort = process.env.PROFILE_URL_PORT || 3000;
 var gDb;
 var gDbo;
 
@@ -13,11 +15,15 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //GET FRIENDS
-app.get('/friends/:userId', (req, res) => {
-    let userId = parseInt(req.params.userId)
-    gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
+app.get('/friends/:userid', (req, res) => {
+    let userid = req.params.userid;
+    gDbo.collection("tblFriends").findOne({"userid": userid}, function(err, result) {
         if (err) {
             res.send('Friend get : ' + false + err);
+        }
+        if(!result ){
+            res.send([]);
+            return;
         }
         console.log('fetching')
         console.log(result.friends)
@@ -27,25 +33,71 @@ app.get('/friends/:userId', (req, res) => {
 
 //GET FRIENDS SUGGESTIONS
 app.get('/friendsuggestions/:userid', (req, res) => {
-    res.send('Hello friendsuggestions GET : ' + req.params.userid + '. MongoDB Environment Variable : ' + process.env.MONGO_DB);
+    var options = {
+        host: profileUrl,
+        port: profileUrlPort,
+        path: '/profile/' + req.params.userid,
+        type: 'get'
+      };
+      
+     var getReq =  http.get(options, function(resp){
+        resp.on('data', function(chunk){
+          let userDetails = chunk;
+          console.log('userDetails ' + JSON.stringify(userDetails));
+          options.path = 'profile/' + process.env.CAP;
+          options.type = 'post';
+          var postReq = http.post(options, function(suggF){
+              suggF.on('data', function(data){
+                  console.log('suggested friends ' + JSON.stringify(data));
+                  res.send(data);
+              });
+          }).on("error", function(err){
+            console.log("Got error while fetching query result from profile: " + err.message);
+            res.send([]);
+          });
+
+          postReq.write({age: userDetails.age, movietype: userDetails.movietype});
+
+          postReq.extended();
+        });
+      }).on("error", function(e){
+        console.log("Got error while fetching profile details: " + e.message);
+        res.send([])
+      });
+      getReq.end();
+    //res.send('Hello friendsuggestions GET : ' + req.params.userid + '. MongoDB Environment Variable : ' + process.env.MONGO_DB);
 });
 
 //MAKE FRIEND
-app.post('/friends/:userId', (req, res) => {
-    let userId = parseInt(req.params.userId)
-    gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
+app.post('/friends/:userid', (req, res) => {
+    let userid = req.params.userid;
+    let frienduser = {
+        userid:req.body.friendid,
+        name:req.body.friendname
+    };
+    gDbo.collection("tblFriends").findOne({"userid": userid}, function(err, result) {
         if (err) {
             res.send("false");
         }
         console.log('fetching');
-        gDbo.collection("tblFriends").findOne({"userId": req.body.userid}, function(err, fr) {
-            if (err) {
-                res.send("false");
+        if(!result){
+            result = {
+                userid: userid,
+                friends: []
+            };
+            result.friends.push(frienduser);
+             gDbo.collection("tblFriends").insertOne(result, function(err, add) {
+              if (err) throw err;
+              console.log("1 document inserted");
+              res.send("true")
+            });
+        }
+        else {
+            if(!result.friends) {
+                result.friends = [];
             }
-            console.log('fetching')
-            
-            result.friends.push({userId: req.body.userid, name: fr.userName });
-            var myquery = { userId: userId };
+            result.friends.push(frienduser);
+            var myquery = { userid: userid };
             var newvalues = { $set: { friends: result.friends } };
             gDbo.collection("tblFriends").updateOne(myquery, newvalues, function(err, updateres) {
                 if (err) {
@@ -54,29 +106,33 @@ app.post('/friends/:userId', (req, res) => {
                 console.log("1 document updated");
                 res.send("true");
             });
-        });
+        }
     });
 });
 
 //UNFRIEND
 app.delete('/friends/:userid', (req, res) => {
-    let userId = parseInt(req.params.userid)
-    gDbo.collection("tblFriends").findOne({"userId": userId}, function(err, result) {
+    let userid = req.params.userid;
+    gDbo.collection("tblFriends").findOne({"userid": userid}, function(err, result) {
         if (err) {
             res.send("false");
         }
         console.log('fetching');
-            
+        if(!result){
+            res.send("true");
+            return;
+        }
         let index  = result.friends.findIndex(e => {
-            if(e.userId == req.body.userid) {
+            if(e.userid == req.body.friendid) {
                 return true;
             }
             else {
                 return false;
             }
         });
-        result.friends.splice(index, 1);
-        var myquery = { userId: userId };
+        if(index > -1)
+           result.friends.splice(index, 1);
+        var myquery = { userid: userid };
         var newvalues = { $set: { friends: result.friends } };
         gDbo.collection("tblFriends").updateOne(myquery, newvalues, function(err, updateres) {
             if (err) {
@@ -100,13 +156,13 @@ app.listen(process.env.PORT || 3000, function () {
         dbo.createCollection("tblFriends", function(err, res) {
             if (err) throw err;
             console.log("Collection created!");
-            // var myobj = { userId: 4, userName: 'testUserFour', age: 30, movieType: 'comedy', friends: [] };
+            // var myobj = { userid: 4, userName: 'testUserFour', age: 30, movieType: 'comedy', friends: [] };
             // dbo.collection("tblFriends").insertOne(myobj, function(err, res) {
             //   if (err) throw err;
             //   console.log("1 document inserted");
             // });
             //----------------------------------------------------------------------------
-            // dbo.collection("tblFriends").findOne({"userId": 1}, function(err, result) {
+            // dbo.collection("tblFriends").findOne({"userid": 1}, function(err, result) {
             //     if (err) throw err;
             //     console.log('fetching')
             //     console.log(result);
